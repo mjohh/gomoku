@@ -95,7 +95,7 @@ def match_shapes_in_line(line):
         #    cnt += 1 
         #    i += 1
         while True:
-            if i+1<l and line[i]==line[i+1] and cnt<5:
+            if i+1<l and line[i]!=0 and line[i]==line[i+1] and cnt<5:
                 player = line[i]
                 cnt += 1
                 i += 1
@@ -107,6 +107,7 @@ def match_shapes_in_line(line):
                 i += 2
                 end = i
             else:
+                i += 1
                 break
             
         #at least 2 in line
@@ -124,8 +125,7 @@ def match_shapes_in_line(line):
                     save_shape_cnts(player_cnts, cnt, start_blocken, end_blocken)    
                 else:
                     save_shape_cnts(opponent_cnts, cnt, start_blocken, end_blocken)
-        else:
-            i += 1
+
     return player_cnts, opponent_cnts
 
 def count_scores_in_line(line):
