@@ -151,18 +151,14 @@ def evaluate_board(board):
     # 1. 横向扫描（逐行扫描每一列）
     for i in range(BOARD_SIZE):
         line = [board[i][j] for j in range(BOARD_SIZE)]
-        if len(line)>=5:
-            all_zero = all(v==0 for v in line)
-            if not all_zero:
-                score += count_scores_in_line(line)
+        if len(line)>=5 and any(v != 0 for v in line):
+            score += count_scores_in_line(line)
 
     # 2. 纵向扫描（逐列扫描每一行）
     for j in range(BOARD_SIZE):
         line = [board[i][j] for i in range(BOARD_SIZE)]
-        if len(line)>=5:
-            all_zero = all(v==0 for v in line)
-            if not all_zero:
-                score += count_scores_in_line(line)
+        if len(line)>=5 and any(v != 0 for v in line):
+            score += count_scores_in_line(line)
 
     # 3. 右下对角线扫描
     for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
