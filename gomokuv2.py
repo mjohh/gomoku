@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+## -*- coding: utf-8 -*-
 import numpy as np
 import time
 FIVE = 0
@@ -153,7 +153,7 @@ def match_shapes_in_line_v2(board, x0, y0, dr, dc):
                 j += dc
                 endi = i
                 endj = j
-                print('in connect, cnt=',cnt)
+                #print('in connect, cnt=',cnt)
             #skipping
             elif in_board(i+2*dr, j+2*dc) and board[i][j]!=EMPTY and board[i+dr][j+dc]==EMPTY and board[i][j]==board[i+2*dr][j+2*dc] and cnt<4:
                 player = board[i][j]
@@ -162,11 +162,11 @@ def match_shapes_in_line_v2(board, x0, y0, dr, dc):
                 j += 2*dc
                 endi = i
                 endj = j
-                print('in skip')
+                #print('in skip')
             else:
                 i += dr
                 j += dc
-                print('in zero')
+                #print('in zero')
                 break
 
         #at least 2 in line
@@ -183,6 +183,176 @@ def match_shapes_in_line_v2(board, x0, y0, dr, dc):
             else:
                 save_shape_cnts(opponent_cnts, cnt, start_blocken, end_blocken)
     return player_cnts, opponent_cnts
+
+def count_scores_in_line_v2(board, x0, y0, dr, dc):
+    player_score=0
+    opponent_score=0
+    a,b = match_shapes_in_line_v2(board, x0, y0, dr, dc)
+
+    #print('a:',a)
+    #print('b:',b)
+    for k in a.keys():
+        player_score += a[k]*shape_scores[k]
+    for k in b.keys():
+        opponent_score += b[k]*shape_scores[k]
+    return player_score-opponent_score
+
+def is_empty_line(board, x0, y0, dr, dc):
+    noempty = False
+    i = x0
+    j = y0
+    while(in_board(i,j)):
+        if(board[i][j]!=EMPTY):
+            return False 
+        i+=dr
+        j+=dc
+    return True
+    
+def is_short_line(board, x0, y0, dr, dc):
+    return not in_board(x0+4*dr, y0+4*dc)    
+
+def illegal_line(board, x0, y0, dr, dc):
+    i = x0
+    j = y0
+    # too short
+    if not in_board(x0+4*dr, y0+4*dc):
+        return True    
+    # not empty
+    while(in_board(i,j)):
+        if(board[i][j]!=EMPTY):
+            return False 
+        i+=dr
+        j+=dc
+    # empty
+    return True
+    
+
+# 扫描所有方向上的棋线（横向、纵向、对角线）
+def evaluate_board_v2(board):
+    """
+    扫描棋盘上的所有线段（横向、纵向、对角线）。
+    :param board: 当前棋盘状态
+    :return: 返回总score
+    """
+    score = 0
+    
+    t1 = time.time()
+    # 1. 横向扫描（逐行扫描每一列）
+    '''
+    for i in range(BOARD_SIZE):
+        line = [board[i][j] for j in range(BOARD_SIZE)]
+        if len(line)>=5 and any(v != 0 for v in line):
+            score += count_scores_in_line(line)
+    for i in range(BOARD_SIZE):
+        for j in range(BOARD_SIZE):
+            score += count_scores_in_line_v2(board, i, j, 0, 1)
+    '''
+    for start in range(BOARD_SIZE):
+        x, y = 0, start
+        if illegal_line(board, x, y, 1, 0):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 1, 0)
+
+    # 2. 纵向扫描（逐列扫描每一行）
+    '''
+    for j in range(BOARD_SIZE):
+        line = [board[i][j] for i in range(BOARD_SIZE)]
+        if len(line)>=5 and any(v != 0 for v in line):
+            score += count_scores_in_line(line)
+    for j in range(BOARD_SIZE):
+        for i in range(BOARD_SIZE):
+            score += count_scores_in_line_v2(board, i, j, 1, 0)
+    '''
+    for start in range(BOARD_SIZE):
+        x, y = start, 0
+        if illegal_line(board, x, y, 0, 1):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 0, 1)
+
+    # 3. 右下对角线扫描
+    '''
+    for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
+        line = []
+        x, y = start, 0
+        all_zero = True
+        while x < BOARD_SIZE and y < BOARD_SIZE:
+            line.append(board[x][y])
+            if board[x][y]!=EMPTY:
+                all_zero = False 
+            x += 1
+            y += 1
+        if len(line)>=5 and not all_zero:
+            score += count_scores_in_line(line)
+    '''
+    for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
+        x, y = start, 0
+        if illegal_line(board, x, y, 1, 1):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 1, 1)
+    '''
+    for start in range(1, BOARD_SIZE):  # 从左下到右上的每条对角线
+        line = []
+        x, y = 0, start
+        all_zero = True
+        while x < BOARD_SIZE and y < BOARD_SIZE:
+            line.append(board[x][y])
+            if board[x][y]!=EMPTY:
+                all_zero = False 
+            x += 1
+            y += 1
+        if len(line)>=5 and not all_zero:
+            score += count_scores_in_line(line)
+    '''
+    for start in range(1, BOARD_SIZE):  # 从左下到右上的每条对角线
+        x, y = 0, start
+        if illegal_line(board, x, y, 1, 1):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 1, 1)
+    
+    '''
+    # 4. 左下对角线扫描
+    for start in range(BOARD_SIZE):  # 从右上到左下的每条对角线
+        line = []
+        all_zero = True
+        x, y = start, BOARD_SIZE - 1
+        while x < BOARD_SIZE and y >= 0:
+            line.append(board[x][y])
+            if board[x][y]!=EMPTY:
+                all_zero = False 
+            x += 1
+            y -= 1
+        if len(line)>=5 and not all_zero:
+            score += count_scores_in_line(line)
+    '''
+    # 4. 左下对角线扫描
+    for start in range(BOARD_SIZE):  # 从右上到左下的每条对角线
+        x, y = start, BOARD_SIZE-1
+        if illegal_line(board, x, y, 1,-1):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 1, -1)
+    
+    ''' 
+    for start in range(1, BOARD_SIZE):  # 从右下到左上的每条对角线
+        line = []
+        x, y = 0, BOARD_SIZE - 1 - start
+        all_zero = True
+        while x < BOARD_SIZE and y >= 0:
+            line.append(board[x][y])
+            if board[x][y]!=EMPTY:
+                all_zero = False 
+            x += 1
+            y -= 1
+        if len(line)>=5 and not all_zero:
+            score += count_scores_in_line(line)
+    '''
+    for start in range(1, BOARD_SIZE):  # 从右下到左上的每条对角线
+        x, y = 0, BOARD_SIZE - 1 - start
+        if illegal_line(board, x, y, 1,-1):
+            continue
+        score += count_scores_in_line_v2(board, x, y, 1, -1)
+    t2 = time.time()
+    #print('v2 evaluate cost t={}ms'.format(t2-t1))
+    return score
 
 
 def count_scores_in_line(line):
@@ -271,20 +441,31 @@ def evaluate_board(board):
         if len(line)>=5 and not all_zero:
             score += count_scores_in_line(line)
     t2 = time.time()
-    #print('evaluate cost t={}ms'.format(t2-t1))
+    #print('v1 evaluate cost t={}ms'.format(t2-t1))
     return score
 
 
 # 初始化棋盘
 def init_board():
     return [[EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+    #board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+    #return board
 
 # 打印棋盘
 def print_board(board):
-    print("\n" + "  ".join([str(i).rjust(2) for i in range(BOARD_SIZE)]))  # 打印列号
+    show_board=[['-' for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
     for r in range(BOARD_SIZE):
-        row = [str(board[r][c]) for c in range(BOARD_SIZE)]
+        for c in range(BOARD_SIZE):
+            if board[r][c]==-1:
+                show_board[r][c]='0'
+            elif board[r][c]==1:
+                show_board[r][c]='1'
+    print("\n " + " ".join([str(i).rjust(2) for i in range(BOARD_SIZE)]))  # 打印列号
+    for r in range(BOARD_SIZE):
+        #row = [str(board[r][c]) for c in range(BOARD_SIZE)]
+        row=show_board[r]
         print("{:2}".format(r) + "  ".join(row))  # 打印行号
+    #print(board)
 
 # 判断是否胜利
 def check_winner(board, player):
@@ -311,6 +492,7 @@ def minimax(board, depth, maximizing_player):
         eval_cnt += 1
         #print('eval_cnt={}'.format(eval_cnt))
         return evaluate_board(board)
+        #return evaluate_board_v2(board)
 
     if maximizing_player:  # AI玩家
         max_eval = -float('inf')
@@ -342,7 +524,7 @@ def find_best_move(board):
         for c in range(BOARD_SIZE):
             if board[r][c] == EMPTY:  # 空位
                 board[r][c] = PLAYER
-                move_value = minimax(board, 1, False)  # 深度设置为3
+                move_value = minimax(board, 2, False)  # 深度设置为3
                 if move_value > best_value:
                     best_value = move_value
                     best_move = (r, c)
@@ -394,8 +576,8 @@ def play_game():
             print("\nAI赢了！")
             break
 
-#if __name__ == "__main__":
-#    play_game()
+if __name__ == "__main__":
+    play_game()
 #################################################################
 #all empty
 '''
@@ -642,10 +824,12 @@ score = evaluate_board(board)
 print(score)
 assert score==10100
 '''
+'''
 ############################
 # 初始化一个棋盘
 board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 a,b = match_shapes_in_line_v2(board, 1, 1, 0, 1)
+#print(board)
 print(a)
 print(b)
 
@@ -654,6 +838,145 @@ board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 board[0][0]=1
 board[0][1]=1
 a,b = match_shapes_in_line_v2(board, 0, 0, 0, 1)
-print(board)
+#print(board)
 print(a)
 print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[0][0]=1
+board[1][1]=1
+a,b = match_shapes_in_line_v2(board, 0, 0, 1, 1)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[0][0]=1
+board[1][0]=1
+a,b = match_shapes_in_line_v2(board, 0, 0, 1, 0)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[0][1]=1
+board[0][2]=1
+a,b = match_shapes_in_line_v2(board, 0, 1, 0, 1)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[1][1]=1
+board[2][2]=1
+a,b = match_shapes_in_line_v2(board, 1, 1, 1, 1)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[1][0]=1
+board[2][0]=1
+a,b = match_shapes_in_line_v2(board, 1, 0, 1, 0)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[1][0]=1
+board[2][0]=0
+board[3][0]=1
+a,b = match_shapes_in_line_v2(board, 1, 0, 1, 0)
+#print(board)
+print(a)
+print(b)
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+board[1][0]=1
+board[2][0]=0
+board[3][0]=0
+board[4][0]=1
+a,b = match_shapes_in_line_v2(board, 1, 0, 1, 0)
+#print(board)
+print(a)
+print(b)
+
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+# 设置一些棋子，假设玩家1为1，玩家2为-1
+board[7][7] = 1  # 玩家1的棋子
+board[7][8] = -1  # 玩家2的棋子
+board[7][9] = 1  # 玩家1的棋子
+board[8][7] = 1  # 玩家1的棋子
+board[9][7] = 1  # 玩家1的棋子
+a,b = match_shapes_in_line_v2(board, 0, 7, 1, 0)
+#print(board)
+print(a)
+print(b)
+
+####
+# 初始化一个棋盘
+
+####
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+
+# 设置一些棋子，假设玩家1为1，玩家2为-1
+board[7][7] = 1  # 玩家1的棋子
+board[7][8] = -1  # 玩家2的棋子
+board[7][9] = 1  # 玩家1的棋子
+board[8][7] = 1  # 玩家1的棋子
+board[9][7] = 1  # 玩家1的棋子
+#print(board)
+# 扫描所有方向上的棋线
+score = evaluate_board_v2(board)
+print(score)
+assert score==1100
+
+####
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+
+# 设置一些棋子，假设玩家1为1，玩家2为-1
+board[7][7] = 1  # 玩家1的棋子
+board[7][8] = -1  # 玩家2的棋子
+board[7][9] = 1  # 玩家1的棋子
+board[7][10] = 1  # 玩家1的棋子
+board[8][7] = 1  # 玩家1的棋子
+board[9][7] = 1  # 玩家1的棋子
+
+# 扫描所有方向上的棋线
+score = evaluate_board_v2(board)
+print(score)
+assert score==1110
+
+####
+# 初始化一个棋盘
+board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+
+# 设置一些棋子，假设玩家1为1，玩家2为-1
+
+board[5][5] = 1  # 玩家1的棋子
+board[6][6] = 1  # 玩家1的棋子
+board[6][7] = 1  # 玩家1的棋子
+board[7][7] = 1  # 玩家1的棋子
+board[7][8] = -1  # 玩家2的棋子
+board[8][8] = -1  # 玩家2的棋子
+board[9][9] = -1  # 玩家2的棋子
+board[7][9] = 1  # 玩家1的棋子
+board[7][10] = 1  # 玩家1的棋子
+board[8][7] = 1  # 玩家1的棋子
+board[9][7] = 1  # 玩家1的棋子
+
+# 扫描所有方向上的棋线
+score = evaluate_board_v2(board)
+#print(board)
+print(score)
+assert score==10100
+'''
