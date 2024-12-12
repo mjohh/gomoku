@@ -484,6 +484,29 @@ def check_line(board, r, c, dr, dc, player):
             return False
     return True
 
+# 三步以内无子，剪枝
+def is_isolated(board, x, y, steps):
+    for step in range(1,steps+1):
+        if in_board(x,y-step) and board[x][y-step]!=EMPTY:
+            return False
+        if in_board(x-step,y-step) and board[x-step][y-step]!=EMPTY:
+            return False
+        if in_board(x-step,y) and board[x-step][y]!=EMPTY:
+            return False
+        if in_board(x-step,y+step) and board[x-step][y+step]!=EMPTY:
+            return False
+        if in_board(x,y+step) and board[x][y+step]!=EMPTY:
+            return False
+        if in_board(x+step,y+step) and board[x+step][y+step]!=EMPTY:
+            return False
+        if in_board(x+step,y) and board[x+step][y]!=EMPTY:
+            return False
+        if in_board(x+step,y-step) and board[x+step][y-step ]!=EMPTY:
+            return False
+    return True
+        
+
+
 # Minimax算法
 eval_cnt=0
 def minimax(board, depth, maximizing_player):
@@ -498,6 +521,9 @@ def minimax(board, depth, maximizing_player):
         max_eval = -float('inf')
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
+                # 剪枝
+                if is_isolated(board,r,c,2):
+                    continue
                 if board[r][c] == EMPTY:  # 空位
                     board[r][c] = PLAYER
                     eval = minimax(board, depth-1, False)
@@ -508,6 +534,9 @@ def minimax(board, depth, maximizing_player):
         min_eval = float('inf')
         for r in range(BOARD_SIZE):
             for c in range(BOARD_SIZE):
+                # 剪枝
+                if is_isolated(board,r,c,2):
+                    continue
                 if board[r][c] == EMPTY:  # 空位
                     board[r][c] = OPPONENT 
                     eval = minimax(board, depth-1, True)
@@ -522,6 +551,9 @@ def find_best_move(board):
     t1 = time.time()
     for r in range(BOARD_SIZE):
         for c in range(BOARD_SIZE):
+            # 剪枝
+            if is_isolated(board,r,c,2):
+                continue
             if board[r][c] == EMPTY:  # 空位
                 board[r][c] = PLAYER
                 move_value = minimax(board, 2, False)  # 深度设置为3
