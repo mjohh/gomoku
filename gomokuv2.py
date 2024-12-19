@@ -556,7 +556,7 @@ def find_best_move(board):
                 continue
             if board[r][c] == EMPTY:  # 空位
                 board[r][c] = PLAYER
-                move_value = minimax(board, 2, False)  # 深度设置为3
+                move_value = minimax(board, 1, False)  # 深度设置为3
                 if move_value > best_value:
                     best_value = move_value
                     best_move = (r, c)
