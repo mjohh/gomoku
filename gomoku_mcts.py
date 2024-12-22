@@ -1,6 +1,8 @@
 ## -*- coding: utf-8 -*-
 import numpy as np
 import time
+import copy
+import random
 
 # import mcts tree
 from mcts import TreeNode
@@ -14,7 +16,8 @@ from mcts import uct_val
 #from mcts import monte_carlo_search
 from mcts import print_mcts_tree
  
-TIMES = 500
+TIMES = 1000 
+
 
 FIVE = 0
 LIVE_FOUR = 1
@@ -27,7 +30,14 @@ SLEEP_TWO = 6
 PLAYER = 1
 OPPONENT = -1
 EMPTY = 0
-BOARD_SIZE = 15 
+BOARD_SIZE = 8 
+
+WIN = 1
+DRAW = 0
+GOON = -1
+
+#node_cnt=0
+#sim_cnt=0
 
 shapes = ['five','live_four','sleep_four','live_three','sleep_three','live_two','sleep_two']
 shape_scores = {'five':100000,'live_four':10000,'sleep_four':1000,'live_three':1000,'sleep_three':100,'live_two':100,'sleep_two':10}
@@ -54,44 +64,6 @@ def save_shape_cnts(cnt_dict, cnt, start_blocken, end_blocken):
         elif cnt==4:
             cnt_dict['live_four'] += 1
 
-'''
-def match_shapes_in_line(line):
-    l = len(line)
-    i = 0
-    player_cnts = {shape:0 for shape in shapes}
-    opponent_cnts = {shape:0 for shape in shapes}
-
-    while i<l:
-        # 
-        cnt = 1 
-        player = 0
-        start = i
-        start_blocken = False
-        end_blocken = False
-
-        while i+1<l and line[i]==line[i+1] and cnt<5:
-            player = line[i]
-            cnt += 1
-            i += 1
-        #at least 2 in line
-        if cnt>1:
-            if player!=0:
-                # check ends
-                end=start+cnt-1
-                if start-1<0 or line[start-1]==-player:
-                    start_blocken = True
-                if end+1>l-1 or line[end+1]==-player:
-                    end_blocken = True
-
-                # save cnt for shape of player
-                if player==PLAYER:
-                    save_shape_cnts(player_cnts, cnt, start_blocken, end_blocken)    
-                else:
-                    save_shape_cnts(opponent_cnts, cnt, start_blocken, end_blocken)
-        else:
-            i += 1
-    return player_cnts, opponent_cnts
-'''
 def match_shapes_in_line(line):
     l = len(line)
     i = 0
@@ -117,11 +89,11 @@ def match_shapes_in_line(line):
                 i += 1
                 end = i
             #skipping
-            elif i+2<l and line[i]!=0 and line[i+1]==0 and line[i]==line[i+2] and cnt<4:
-                player = line[i]
-                cnt += 1 
-                i += 2
-                end = i
+            #elif i+2<l and line[i]!=0 and line[i+1]==0 and line[i]==line[i+2] and cnt<4:
+            #    player = line[i]
+            #    cnt += 1 
+            #    i += 2
+            #    end = i
             else:
                 i += 1
                 break
@@ -146,72 +118,6 @@ def match_shapes_in_line(line):
 def in_board(i,j):
     return i>-1 and i<BOARD_SIZE and j>-1 and j<BOARD_SIZE
 
-def match_shapes_in_line_v2(board, x0, y0, dr, dc):
-    l = BOARD_SIZE
-    i=x0
-    j=y0
-    player_cnts = {shape:0 for shape in shapes}
-    opponent_cnts = {shape:0 for shape in shapes}
-
-    while in_board(i, j):
-        cnt = 1
-        player=EMPTY
-        starti = i
-        startj = j
-        start_blocken = False
-        end_blocken = False
-
-        while True:
-            if in_board(i+dr,j+dc) and board[i][j]!=EMPTY and board[i][j]==board[i+dr][j+dc] and cnt<5:
-                player = board[i][j]
-                cnt += 1
-                i += dr
-                j += dc
-                endi = i
-                endj = j
-                #print('in connect, cnt=',cnt)
-            #skipping
-            elif in_board(i+2*dr, j+2*dc) and board[i][j]!=EMPTY and board[i+dr][j+dc]==EMPTY and board[i][j]==board[i+2*dr][j+2*dc] and cnt<4:
-                player = board[i][j]
-                cnt += 1
-                i += 2*dr
-                j += 2*dc
-                endi = i
-                endj = j
-                #print('in skip')
-            else:
-                i += dr
-                j += dc
-                #print('in zero')
-                break
-
-        #at least 2 in line
-        if cnt>1:
-            #check ends
-            if (not in_board(starti-dr,startj-dc)) or board[starti-dr][startj-dc]==-player:
-                start_blocken=True
-            if (not in_board(endi+dr,endj+dc)) or board[endi+dr][endj+dc]==-player:
-                end_blocken=True
-
-            # save cnt for shape of player
-            if player==PLAYER:
-                save_shape_cnts(player_cnts, cnt, start_blocken, end_blocken)
-            else:
-                save_shape_cnts(opponent_cnts, cnt, start_blocken, end_blocken)
-    return player_cnts, opponent_cnts
-
-def count_scores_in_line_v2(board, x0, y0, dr, dc):
-    player_score=0
-    opponent_score=0
-    a,b = match_shapes_in_line_v2(board, x0, y0, dr, dc)
-
-    #print('a:',a)
-    #print('b:',b)
-    for k in a.keys():
-        player_score += a[k]*shape_scores[k]
-    for k in b.keys():
-        opponent_score += b[k]*shape_scores[k]
-    return player_score-opponent_score
 
 def is_empty_line(board, x0, y0, dr, dc):
     noempty = False
@@ -242,135 +148,6 @@ def illegal_line(board, x0, y0, dr, dc):
     # empty
     return True
     
-
-# 扫描所有方向上的棋线（横向、纵向、对角线）
-def evaluate_board_v2(board):
-    """
-    扫描棋盘上的所有线段（横向、纵向、对角线）。
-    :param board: 当前棋盘状态
-    :return: 返回总score
-    """
-    score = 0
-    
-    t1 = time.time()
-    # 1. 横向扫描（逐行扫描每一列）
-    '''
-    for i in range(BOARD_SIZE):
-        line = [board[i][j] for j in range(BOARD_SIZE)]
-        if len(line)>=5 and any(v != 0 for v in line):
-            score += count_scores_in_line(line)
-    for i in range(BOARD_SIZE):
-        for j in range(BOARD_SIZE):
-            score += count_scores_in_line_v2(board, i, j, 0, 1)
-    '''
-    for start in range(BOARD_SIZE):
-        x, y = 0, start
-        if illegal_line(board, x, y, 1, 0):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 1, 0)
-
-    # 2. 纵向扫描（逐列扫描每一行）
-    '''
-    for j in range(BOARD_SIZE):
-        line = [board[i][j] for i in range(BOARD_SIZE)]
-        if len(line)>=5 and any(v != 0 for v in line):
-            score += count_scores_in_line(line)
-    for j in range(BOARD_SIZE):
-        for i in range(BOARD_SIZE):
-            score += count_scores_in_line_v2(board, i, j, 1, 0)
-    '''
-    for start in range(BOARD_SIZE):
-        x, y = start, 0
-        if illegal_line(board, x, y, 0, 1):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 0, 1)
-
-    # 3. 右下对角线扫描
-    '''
-    for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
-        line = []
-        x, y = start, 0
-        all_zero = True
-        while x < BOARD_SIZE and y < BOARD_SIZE:
-            line.append(board[x][y])
-            if board[x][y]!=EMPTY:
-                all_zero = False 
-            x += 1
-            y += 1
-        if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
-    '''
-    for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
-        x, y = start, 0
-        if illegal_line(board, x, y, 1, 1):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 1, 1)
-    '''
-    for start in range(1, BOARD_SIZE):  # 从左下到右上的每条对角线
-        line = []
-        x, y = 0, start
-        all_zero = True
-        while x < BOARD_SIZE and y < BOARD_SIZE:
-            line.append(board[x][y])
-            if board[x][y]!=EMPTY:
-                all_zero = False 
-            x += 1
-            y += 1
-        if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
-    '''
-    for start in range(1, BOARD_SIZE):  # 从左下到右上的每条对角线
-        x, y = 0, start
-        if illegal_line(board, x, y, 1, 1):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 1, 1)
-    
-    '''
-    # 4. 左下对角线扫描
-    for start in range(BOARD_SIZE):  # 从右上到左下的每条对角线
-        line = []
-        all_zero = True
-        x, y = start, BOARD_SIZE - 1
-        while x < BOARD_SIZE and y >= 0:
-            line.append(board[x][y])
-            if board[x][y]!=EMPTY:
-                all_zero = False 
-            x += 1
-            y -= 1
-        if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
-    '''
-    # 4. 左下对角线扫描
-    for start in range(BOARD_SIZE):  # 从右上到左下的每条对角线
-        x, y = start, BOARD_SIZE-1
-        if illegal_line(board, x, y, 1,-1):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 1, -1)
-    
-    ''' 
-    for start in range(1, BOARD_SIZE):  # 从右下到左上的每条对角线
-        line = []
-        x, y = 0, BOARD_SIZE - 1 - start
-        all_zero = True
-        while x < BOARD_SIZE and y >= 0:
-            line.append(board[x][y])
-            if board[x][y]!=EMPTY:
-                all_zero = False 
-            x += 1
-            y -= 1
-        if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
-    '''
-    for start in range(1, BOARD_SIZE):  # 从右下到左上的每条对角线
-        x, y = 0, BOARD_SIZE - 1 - start
-        if illegal_line(board, x, y, 1,-1):
-            continue
-        score += count_scores_in_line_v2(board, x, y, 1, -1)
-    t2 = time.time()
-    #print('v2 evaluate cost t={}ms'.format(t2-t1))
-    return score
-
-
 def count_scores_in_line(line):
     player_score=0
     opponent_score=0
@@ -490,8 +267,14 @@ def check_winner(board, player):
             if board[r][c] == player:
                 if check_line(board, r, c, 1, 0, player) or check_line(board, r, c, 0, 1, player) or \
                    check_line(board, r, c, 1, 1, player) or check_line(board, r, c, 1, -1, player):
-                    return True
-    return False
+                    return WIN 
+
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+            if board[r][c] == EMPTY:
+                return GOON
+    return DRAW
+
 
 def check_line(board, r, c, dr, dc, player):
     for i in range(5):
@@ -521,20 +304,95 @@ def is_isolated(board, x, y, steps):
             return False
     return True
 
-def get_possible_moves(node):
+def empty_board(state):
+    for r in range(BOARD_SIZE):
+        for c in range(BOARD_SIZE):
+           if state[r][c]!=EMPTY:
+                return False
+    return True
+
+#def get_possible_moves(node):
+def get_possible_moves(state):
+    if empty_board(state):
     # first step, just place on the center
-    if node.parent==None:
-        return [BOARD_SIZE//2,BOARD_SIZE//2]
-    board = node.state
+        return [(BOARD_SIZE//2,BOARD_SIZE//2)]
+    board = state
     moves = []
     for row in range(BOARD_SIZE):
         for col in range(BOARD_SIZE):
-            if board[row][col]==0:
+            # have neibor chess within 3 steps
+            if board[row][col]==0 and not is_isolated(board, row, col, 2):
                 moves.append((row, col))
     return moves
 
-    
+def make_move(state, move, player):
+    #new_state = [row.copy() for row in state]
+    #if deepcopy:
+    #    new_state = [copy.deepcopy(row) for row in state]
+    #else:
+        #new_state = state
+    #    new_state = [copy.deepcopy(row) for row in state]
+    row, col = move
+    state[row][col] = player
+    #return state
 
+
+# attention:no consider draw temply
+def is_game_over(state, player):
+    r = check_winner(state, player)
+    if r==WIN:
+        return True, player
+    elif r==DRAW:
+        return True, None
+    return False, None
+
+def choose_move_by_score(state, player):
+    possible_moves = get_possible_moves(state)
+    if len(possible_moves)<=0:
+        return None
+    mv = None
+    if player==PLAYER:
+        maxscore = float('-inf') 
+        for move in possible_moves:
+            make_move(state, move, player)
+            score = evaluate_board(state)
+            if maxscore < score:
+                maxscore = score
+                mv = move
+            make_move(state, move, EMPTY)
+        return mv
+    else:#opponent
+        minscore = float('inf')
+        for move in possible_moves:
+            make_move(state, move, player)
+            score = evaluate_board(state)
+            if minscore > score:
+                minscore = score
+                mv = move
+            make_move(state, move, EMPTY)
+        return mv
+
+def choose_high_score_child(children):
+    sel=None
+    player = children[0].player
+    if player==PLAYER:
+        maxscore = float('-inf')
+        for child in children:
+            score = evaluate_board(child.state)
+            if maxscore < score:
+                maxscore = score
+                sel = child
+        return sel
+    else:#opponent
+        minscore = float('inf')
+        for child in children:
+            score = evaluate_board(child.state)
+            if minscore > score:
+                minscore = score
+                sel = child
+        return sel
+
+'''
 def select(node):
     while node.children:
         # node never visited will be selected for it's uct val 'inf'
@@ -547,13 +405,21 @@ def select(node):
         #print('selected:')
         #print_node(node)
     return node
+'''
+def select(node):
+    while node.children:
+        # node never visited will be selected for it's uct val 'inf'
+        node = max(node.children, key=uct_val)
+    return node
 
 def expand(node):
-    possible_moves = get_possible_moves(node)
+    global node_cnt
+    possible_moves = get_possible_moves(node.state)
     for move in possible_moves:
-        new_state = make_move(node.state, move, -node.player)
+        new_state = [copy.deepcopy(row) for row in node.state]
+        make_move(new_state, move, -node.player)
         child = TreeNode(new_state, -node.player, parent=node)
-        child.move=move #record the move for return of main proces
+        child.move=move #record the move, we could return it rightly if choosed 
         node.children.append(child)
     return node.children
 
@@ -565,22 +431,34 @@ def simulate(state):
             return winner
         possible_moves = get_possible_moves(state)
         move = random.choice(possible_moves) 
-        state = make_move(state, move)
+        state = make_move(state, move
 '''
-def is_game_over(moved, state, player):
-    
 
 def simulate(node):
     player = node.player
     state = node.state
+    cnt = 0
     while True:
-        game_over,winner = is_game_over(state)
+        cnt += 1
+        t1 = time.time()
+        game_over,winner = is_game_over(state, player)
         if game_over:
+            print('---------game over!----------')
+            if winner==PLAYER:
+                print_board(state)
             return winner
-        possible_moves = get_possible_moves(node)
-        move = random.choice(possible_moves)
+        #possible_moves = get_possible_moves(state)
+        # TODO:my could add evalution, not randomly
+        # evalution only in simsulation?
+        #print('possible_moves len:',len(possible_moves))
+        #move = random.choice(possible_moves)
         player = -player
-        state =  make_move(state, move, player)
+        move = choose_move_by_score(state, player)
+        make_move(state, move, player)
+        print_board(state)
+        #print('move:',move)
+        t2 = time.time()
+        #print('cnt=',cnt,',one move=',t2-t1)
     
 def backpropagate(node, result):
     while node:
@@ -588,95 +466,78 @@ def backpropagate(node, result):
         if result==PLAYER:
             node.wins += 1
         # learn draw, better than loss
-        elif result==0.5:
-            node.wins += 0.5
+        #elif result== None:
+        #    node.wins += 0.5
         node = node.parent
  
 
 def monte_carlo_search(board, player):
     #game begin,asume no.0 step is -1, then the no.1 step will be 1
+    sim_cnt = 0
+    node_cnt = 0
+    selected_couldnot_expand_cnt = 0
+    player_win_cnt = 0
+    opponent_win_cnt = 0
+    draw_cnt = 0
+    select_cnt = 0
     root = TreeNode(board, -player)
     for _ in range(TIMES):
+        t1 = time.time()
         selected = select(root)
+        select_cnt += 1
         #print_node(selected)
         children = expand(selected)
+        node_cnt += len(children)
+        if len(children)==0:
+            selected_couldnot_expand_cnt += 1
         if children:
             #simulated_state = random.choice(children).state
             #result = simulate(simulated_state)
-            child = random.choice(children)
+            # TODO:here may could add evalution besides simulate
+            #child = random.choice(children)
+            child = choose_high_score_child(children)
+            ts1 = time.time()
             result = simulate(child)
+            sim_cnt += 1
+            ts2 = time.time()
+            #print('one sim cost:', ts2-ts1)
             #backpropagate(selected, resul)
             backpropagate(child, result)#backpropagate from the bottom node
-    print_mcts_tree(root,depth=10)
+            if result==PLAYER:
+                player_win_cnt += 1
+            elif result==OPPONENT:
+                opponent_win_cnt += 1
+            elif result==None:
+                draw_cnt += 1
+            else:
+                print('impossible!!!!')
+        t2 = time.time()
+        #print('one mcts search time cost:',t2-t1)
+    print_mcts_tree(root,depth=2)
     best_child = max(root.children, key=lambda x:x.wins)
+    print('node_cnt=',node_cnt)
+    print('TIMES=',TIMES)
+    print('selected_couldnot_expand_cnt=',selected_couldnot_expand_cnt)
+    print('sim_cnt=',sim_cnt)
+    print('player_win_cnt:',player_win_cnt)
+    print('opponent_win_cnt:',opponent_win_cnt)
+    print('draw_cnt:',draw_cnt)
+    print('select_cnt:',select_cnt)
     return best_child.move
 
-# Minimax算法
-eval_cnt=0
-def minimax(board, depth, maximizing_player):
-    if depth == 0 or check_winner(board, PLAYER) or check_winner(board, OPPONENT):
-        global eval_cnt
-        eval_cnt += 1
-        #print('eval_cnt={}'.format(eval_cnt))
-        return evaluate_board(board)
-        #return evaluate_board_v2(board)
-
-    if maximizing_player:  # AI玩家
-        max_eval = -float('inf')
-        for r in range(BOARD_SIZE):
-            for c in range(BOARD_SIZE):
-                # 剪枝
-                if is_isolated(board,r,c,2):
-                    continue
-                if board[r][c] == EMPTY:  # 空位
-                    board[r][c] = PLAYER
-                    eval = minimax(board, depth-1, False)
-                    max_eval = max(max_eval, eval)
-                    board[r][c] = EMPTY
-        return max_eval
-    else:  # 玩家1
-        min_eval = float('inf')
-        for r in range(BOARD_SIZE):
-            for c in range(BOARD_SIZE):
-                # 剪枝
-                if is_isolated(board,r,c,2):
-                    continue
-                if board[r][c] == EMPTY:  # 空位
-                    board[r][c] = OPPONENT 
-                    eval = minimax(board, depth-1, True)
-                    min_eval = min(min_eval, eval)
-                    board[r][c] = EMPTY
-        return min_eval
-
-# 找到AI的最佳落子
-def find_best_move(board):
-    best_move = None
-    best_value = -float('inf')
-    t1 = time.time()
-    for r in range(BOARD_SIZE):
-        for c in range(BOARD_SIZE):
-            # 剪枝
-            if is_isolated(board,r,c,2):
-                continue
-            if board[r][c] == EMPTY:  # 空位
-                board[r][c] = PLAYER
-                move_value = minimax(board, 1, False)  # 深度设置为3
-                if move_value > best_value:
-                    best_value = move_value
-                    best_move = (r, c)
-                board[r][c] = EMPTY
-    t2 = time.time()
-    print('one move cost:{}ms'.format(t2-t1))
-    return best_move
+def find_best_move(board, current_player):
+     move = monte_carlo_search(board, current_player)
+     return move
+    
 
 # 玩家1（你）输入落子位置
 def player_move(board):
     while True:
         try:
             #python2.0
-            #move = raw_input("请输入你的落子位置（格式：行 列）：")
+            move = raw_input("请输入你的落子位置（格式：行 列）：")
             #python3.0
-            move = input("请输入你的落子位置（格式：行 列）：")
+            #move = input("请输入你的落子位置（格式：行 列）：")
             r, c = map(int, move.split())
             if 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == EMPTY:
                 return r, c
@@ -697,29 +558,31 @@ def play_game():
         board[r][c] = OPPONENT 
         print_board(board)
 
-        if check_winner(board, OPPONENT):
+        if WIN==check_winner(board, OPPONENT):
             print("\n恭喜你！你赢了！")
             break
-
+        if DRAW==check_winner(board, OPPONENT):
+            print("\n平局！")
+            break
         # AI玩家（玩家2）的回合
         print("\nAI的回合（O）:")
-        ai_move = find_best_move(board)
+        t1 = time.time()
+        ai_move = find_best_move(board, PLAYER)
+        t2 = time.time()
+        print('find best move cost:',t2-t1)
         r, c = ai_move
         board[r][c] = PLAYER
         print_board(board)
 
-        if check_winner(board, PLAYER):
+        if WIN==check_winner(board, PLAYER):
             print("\nAI赢了！")
             break
-
 if __name__ == "__main__":
-    #play_game()
-    n = TreeNode(None, 1, None)
-    print(n)
-    print(C)
+    play_game()
+
+'''
 #################################################################
 #all empty
-'''
 l = [0,0,0,0,0,0,0,0]
 a,b=match_shapes_in_line(l)
 print(l)
@@ -962,8 +825,6 @@ score = evaluate_board(board)
 #print(board)
 print(score)
 assert score==10100
-'''
-'''
 ############################
 # 初始化一个棋盘
 board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
@@ -1063,6 +924,8 @@ print(b)
 # 初始化一个棋盘
 
 ####
+'''
+'''
 # 初始化一个棋盘
 board = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 

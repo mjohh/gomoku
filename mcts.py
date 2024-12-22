@@ -1,11 +1,13 @@
+## -*- coding: utf-8 -*-
 import math
 import random
 import unittest
+import copy
 
 BOARD_SIZE = 3
 PLAYER = 1
 OPPONENT = -1
-TIMES = 8000 
+TIMES = 800 
 
 #board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
@@ -40,7 +42,8 @@ def get_possible_moves(board):
     return moves
 
 def make_move(state, move, player):
-    new_state = [row.copy() for row in state]
+    #new_state = [row.copy() for row in state]
+    new_state = [copy.deepcopy(row) for row in state]
     row, col = move
     new_state[row][col] = player 
     return new_state
@@ -133,7 +136,7 @@ def monte_carlo_search(board, player):
             result = simulate(child)
             #backpropagate(selected, resul)
             backpropagate(child, result)#backpropagate from the bottom node
-    print_mcts_tree(root,depth=10)
+    print_mcts_tree(root,depth=2)
     best_child = max(root.children, key=lambda x:x.wins)
     return best_child.move
 
@@ -151,7 +154,8 @@ def print_mcts_tree(node, indent="", is_last=True, depth=float('inf')):
         return
     # 先打印当前节点的信息
     symbol = "└── " if is_last else "├── "
-    print(indent + symbol + f"Player: {node.player}, Move: {node.move}, Visits: {node.visits}, Wins: {node.wins}")
+    #print(indent + symbol + f"Player: {node.player}, Move: {node.move}, Visits: {node.visits}, Wins: {node.wins}")
+    print(indent + symbol + "Player: %s, Move: %s, Visits: %s, Wins: %s" % (node.player, node.move, node.visits, node.wins))
     indent += "    " if is_last else "│   "
     # 获取子节点列表长度，用于判断是否是最后一个子节点
     child_count = len(node.children)
@@ -172,7 +176,8 @@ if __name__ == "__main__":
             if winner == 0:
                 print("平局！")
             else:
-                print(f"玩家{winner}获胜！")
+                #print(f"玩家{winner}获胜！")
+                print("玩家%s获胜！" % winner)
             break
         if current_player == 1:
             # 玩家1使用蒙特卡罗搜索算法来决策落子位置
@@ -186,7 +191,7 @@ if __name__ == "__main__":
                     #row = int(input("请输入你要落子的行（0 - 2）："))
                     #col = int(input("请输入你要落子的列（0 - 2）："))
                     print("请输入你的走法 (行 列): ")
-                    row, col = map(int, input().split())
+                    row, col = map(int, raw_input().split())
                     if (row, col) in get_possible_moves(board):
                         board = make_move(board, (row, col), current_player)
                         current_player = 1
