@@ -89,11 +89,11 @@ def match_shapes_in_line(line):
                 i += 1
                 end = i
             #skipping
-            #elif i+2<l and line[i]!=0 and line[i+1]==0 and line[i]==line[i+2] and cnt<4:
-            #    player = line[i]
-            #    cnt += 1 
-            #    i += 2
-            #    end = i
+            elif i+2<l and line[i]!=0 and line[i+1]==0 and line[i]==line[i+2] and cnt<4:
+                player = line[i]
+                cnt += 1 
+                i += 2
+                end = i
             else:
                 i += 1
                 break
@@ -159,8 +159,33 @@ def count_scores_in_line(line):
         opponent_score += b[k]*shape_scores[k]
     return player_score-opponent_score
 
+# for opponent live_trhee, blocking it has hihger priority
+# than form self's live_three 
+def count_scores_in_line_v2(line, player):
+    player_score=0
+    opponent_score=0
+    a,b = match_shapes_in_line(line)
+
+    if player==PLAYER:
+        for k in a.keys():
+            player_score += a[k]*shape_scores[k]
+        for k in b.keys():
+            if k=='live_three':#danger!, kill it rightly
+                opponent_score += b[k]*shape_scores[k]*10
+            else:
+                opponent_score += b[k]*shape_scores[k]
+    else: #OPPONENT:
+        for k in a.keys():
+            if k=='live_three':#danger!, kill it rightly
+                player_score += a[k]*shape_scores[k]*10
+            else: 
+                player_score += a[k]*shape_scores[k]
+        for k in b.keys():
+            opponent_score += b[k]*shape_scores[k]
+    return player_score - opponent_score
+
 # 扫描所有方向上的棋线（横向、纵向、对角线）
-def evaluate_board(board):
+def evaluate_board(board, player):
     """
     扫描棋盘上的所有线段（横向、纵向、对角线）。
     :param board: 当前棋盘状态
@@ -172,13 +197,13 @@ def evaluate_board(board):
     for i in range(BOARD_SIZE):
         line = [board[i][j] for j in range(BOARD_SIZE)]
         if len(line)>=5 and any(v != 0 for v in line):
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
 
     # 2. 纵向扫描（逐列扫描每一行）
     for j in range(BOARD_SIZE):
         line = [board[i][j] for i in range(BOARD_SIZE)]
         if len(line)>=5 and any(v != 0 for v in line):
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
 
     # 3. 右下对角线扫描
     for start in range(BOARD_SIZE):  # 从左上到右下的每条对角线
@@ -192,7 +217,7 @@ def evaluate_board(board):
             x += 1
             y += 1
         if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
 
     for start in range(1, BOARD_SIZE):  # 从左下到右上的每条对角线
         line = []
@@ -205,7 +230,7 @@ def evaluate_board(board):
             x += 1
             y += 1
         if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
 
     # 4. 左下对角线扫描
     for start in range(BOARD_SIZE):  # 从右上到左下的每条对角线
@@ -219,7 +244,7 @@ def evaluate_board(board):
             x += 1
             y -= 1
         if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
 
     for start in range(1, BOARD_SIZE):  # 从右下到左上的每条对角线
         line = []
@@ -232,7 +257,7 @@ def evaluate_board(board):
             x += 1
             y -= 1
         if len(line)>=5 and not all_zero:
-            score += count_scores_in_line(line)
+            score += count_scores_in_line_v2(line, player)
     t2 = time.time()
     #print('v1 evaluate cost t={}ms'.format(t2-t1))
     return score
@@ -355,7 +380,7 @@ def choose_move_by_score(state, player):
         maxscore = float('-inf') 
         for move in possible_moves:
             make_move(state, move, player)
-            score = evaluate_board(state)
+            score = evaluate_board(state, player)
             if maxscore < score:
                 maxscore = score
                 mv = move
@@ -365,7 +390,7 @@ def choose_move_by_score(state, player):
         minscore = float('inf')
         for move in possible_moves:
             make_move(state, move, player)
-            score = evaluate_board(state)
+            score = evaluate_board(state, player)
             if minscore > score:
                 minscore = score
                 mv = move
@@ -378,7 +403,7 @@ def choose_high_score_child(children):
     if player==PLAYER:
         maxscore = float('-inf')
         for child in children:
-            score = evaluate_board(child.state)
+            score = evaluate_board(child.state, player)
             if maxscore < score:
                 maxscore = score
                 sel = child
@@ -386,7 +411,7 @@ def choose_high_score_child(children):
     else:#opponent
         minscore = float('inf')
         for child in children:
-            score = evaluate_board(child.state)
+            score = evaluate_board(child.state, player)
             if minscore > score:
                 minscore = score
                 sel = child
@@ -535,9 +560,9 @@ def player_move(board):
     while True:
         try:
             #python2.0
-            move = raw_input("请输入你的落子位置（格式：行 列）：")
+            #move = raw_input("请输入你的落子位置（格式：行 列）：")
             #python3.0
-            #move = input("请输入你的落子位置（格式：行 列）：")
+            move = input("请输入你的落子位置（格式：行 列）：")
             r, c = map(int, move.split())
             if 0 <= r < BOARD_SIZE and 0 <= c < BOARD_SIZE and board[r][c] == EMPTY:
                 return r, c
