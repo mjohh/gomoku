@@ -42,6 +42,31 @@ GOON = -1
 shapes = ['five','live_four','sleep_four','live_three','sleep_three','live_two','sleep_two']
 shape_scores = {'five':100000,'live_four':10000,'sleep_four':1000,'live_three':1000,'sleep_three':100,'live_two':100,'sleep_two':10}
 
+# basic rule: never reduce the score, only scale up if needed for higher priority 
+# the chess is player or opponent, will cause different score strategy
+# if role is player:
+# 1) if 'five' and skip_cnt==0, it should be highest score, for win rightnow, score=150000
+# 2) if 'five' and skip_cnt>0, need to be avoid and give score=0
+# 3) if 'live_four' and skip_cnt==0, keep unchanged
+# 4) if 'live_four' and skip_cnt>0, degrade to sleep_four
+# 5) if 'sleep_four' and skip_cnt==0 keep unchanged
+# 6) if 'sleep_four' and skip_cnt>0, degrade to sleep_three
+# 7) if 'live_three' and skip_cnt==0, keep unchanged
+# 8) if 'sleep_three' and skip_cnt>0, degrade to sleep_two
+# if role is opponent:
+# 1) if 'five' and skip_cnt==0, never occur, for game over
+# 2) if 'five' and skip_cnt==1, upgrade to five, brock it rightnow
+# 3) if 'five' and skip_cnt==2, upgrade to five, brock it rightnow
+# 4) if 'five' and skip_cnt==3, treat as live_three, through may be sleep_trhee
+# 5) if 'five' and skip_cnt>3, threat as live_two
+# 6) if 'live_four' and skip_cnt==0, 15000, kill it right now, expect player's 'five'  
+# 7) if 'live_four' and skip_cnt==1, 15000, as above
+# 8) if 'live_four' and skip_cnt==2, 15000, as above
+# 9) if 'live_four' and skip_cnt>2, treet as live_two
+# 10)if 'sleep_four' and need more info... 
+def cal_shape_score(cnt, start_blocken, end_blocken, skip_cnt, role):
+    #TODO:
+    return
 
 
 def save_shape_cnts(cnt_dict, cnt, start_blocken, end_blocken):
