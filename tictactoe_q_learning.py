@@ -24,7 +24,7 @@ def get_state_number(board):
     state_num = 0
     multiplier = 1
     for row in board.flatten():
-        state_num += row + 1 * multiplier
+        state_num += (row + 1) * multiplier
         multiplier *= 3
         #print("当前状态编号计算:", state_num)
     return state_num
@@ -94,8 +94,15 @@ def human_random_action(board):
                 available_actions.append(row * board_size + col)
     return random.choice(available_actions)
 
+def statistic_qtable(tbl):
+    n = 0
+    for i in range(num_states):
+        for j in range(num_actions): 
+            if tbl[i][j]!=0:
+                n += 1
+    print('non zeros elem=', n)
 
-num_episodes = 100000
+num_episodes = 1000
 agent_win=0
 human_win=0
 draw=0
@@ -132,9 +139,12 @@ for episode in range(num_episodes):
                 draw += 1
             #print('agent_reward=',agent_reward)        
             # 更新智能体的Q表
+            #print(board)
             new_state = get_state_number(board)
-            Q_table[current_state, action] += learning_rate * (
-                    agent_reward + discount_factor * np.max(Q_table[new_state, :]) - Q_table[current_state, action])
+            #print(new_state)
+            v = learning_rate * (agent_reward + discount_factor * np.max(Q_table[new_state, :]) - Q_table[current_state, action])
+            Q_table[current_state, action] += v 
+            #print('Q_table[{}][{}]={}'.format(current_state, action, v) )
             break
         #print(board)
         # 模拟人类玩家选择动作并落子
@@ -164,12 +174,16 @@ for episode in range(num_episodes):
         #print('human_win=',human_win, 'agent_win=',agent_win, 'draw=',draw)
 
         # 更新智能体的Q表
+        #print(board)
         new_state = get_state_number(board)
-        Q_table[current_state, action] += learning_rate * (
-                    agent_reward + discount_factor * np.max(Q_table[new_state, :]) - Q_table[current_state, action])
+        #print(new_state)
+        v = learning_rate * (agent_reward + discount_factor * np.max(Q_table[new_state, :]) - Q_table[current_state, action])
+        Q_table[current_state, action] += v 
+        #print('Q_table[{}][{}]={}'.format(current_state, action, v) )
 
 print('human_win=',human_win, 'agent_win=',agent_win, 'draw=',draw)
 print(Q_table)
+statistic_qtable(Q_table)
 
 while True:
 
